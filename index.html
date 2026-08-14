@@ -1087,6 +1087,9 @@
     if (new URLSearchParams(location.search).get('action') === 'recommend') {
       setTimeout(() => $('recommendBtn').click(), 300);
     }
+    registration.periodicSync.register('daily-outfit-sync', {
+  minInterval: 24 * 60 * 60 * 1000
+});
   </script>
 </body>
 </html>
