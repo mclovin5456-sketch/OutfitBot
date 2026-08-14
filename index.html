@@ -1087,33 +1087,6 @@
     if (new URLSearchParams(location.search).get('action') === 'recommend') {
       setTimeout(() => $('recommendBtn').click(), 300);
     }
-    registration.periodicSync.register('daily-outfit-sync', {
-  minInterval: 24 * 60 * 60 * 1000
-});
-    self.addEventListener('push', event => {
-  let data = {
-    title: 'OutfitBot',
-    body: 'Открой приложение — я собрал образ на сегодня.'
-  };
-
-  if (event.data) {
-    try {
-      data = event.data.json();
-    } catch {
-      data.body = event.data.text();
-    }
-  }
-
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'OutfitBot', {
-      body: data.body || 'Пора выбрать одежду на сегодня.',
-      icon: './icons/icon-192.png',
-      badge: './icons/icon-192.png',
-      tag: 'morning-outfit',
-      renotify: true
-    })
-  );
-});
   </script>
 </body>
 </html>
