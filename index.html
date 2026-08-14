@@ -272,9 +272,22 @@
     const $ = (id) => document.getElementById(id);
     const todayISO = () => new Date().toISOString().slice(0, 10);
 
+    function showRuntimeError(message) {
+      const text = 'Ошибка приложения: ' + (message || 'неизвестная ошибка') + '. Попробуйте очистить PWA-кэш: откройте страницу с ?reset-pwa=1.';
+      const pwaBox = document.getElementById('pwaStatus');
+      const botBox = document.getElementById('botMessage');
+
+      // Ошибки Service Worker / registration не должны заменять утреннее сообщение.
+      if (pwaBox) pwaBox.textContent = text;
+      else if (botBox) botBox.textContent = text;
+    }
+
     window.addEventListener('error', event => {
-      const box = document.getElementById('botMessage') || document.getElementById('pwaStatus');
-      if (box) box.textContent = 'Ошибка приложения: ' + (event.message || 'неизвестная ошибка') + '. Попробуйте очистить данные сайта или открыть ?reset-pwa=1.';
+      showRuntimeError(event.message);
+    });
+
+    window.addEventListener('unhandledrejection', event => {
+      showRuntimeError(event.reason && (event.reason.message || String(event.reason)));
     });
 
     function safeJsonParse(value, fallback) {
@@ -322,6 +335,10 @@
     let deferredInstallPrompt = null;
     let serviceWorkerReady = false;
     let serviceWorkerError = '';
+
+    // Глобальная ссылка нужна как страховка: если в старом кэше/экспериментальном коде
+    // осталась строка вида `registration...`, она не должна ронять весь интерфейс.
+    var registration = null;
 
     const weatherCodeText = {
       0: 'ясно', 1: 'почти ясно', 2: 'переменная облачность', 3: 'пасмурно',
@@ -437,12 +454,13 @@
 
       try {
         const swUrl = await checkServiceWorkerFile();
-        const registration = await navigator.serviceWorker.register(swUrl.href, { scope: './' });
+        const serviceWorkerRegistration = await navigator.serviceWorker.register(swUrl.href, { scope: './' });
+        registration = serviceWorkerRegistration;
 
         // Принудительно проверяем обновление: GitHub Pages/CDN может некоторое время отдавать старый sw.js.
-        registration.update().catch(() => {});
+        serviceWorkerRegistration.update().catch(() => {});
 
-        if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        if (serviceWorkerRegistration.waiting) serviceWorkerRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
 
         await Promise.race([
           navigator.serviceWorker.ready,
@@ -459,7 +477,7 @@
           ? 'Готово: страница контролируется Service Worker.'
           : 'Service Worker активирован. Если офлайн-режим не заработал сразу, обновите страницу один раз.');
 
-        return registration;
+        return serviceWorkerRegistration;
       } catch (e) {
         serviceWorkerReady = false;
         serviceWorkerError = e.message || String(e);
@@ -988,11 +1006,12 @@
       // В PWA предпочтительно показывать уведомления через Service Worker.
       if ('serviceWorker' in navigator) {
         try {
-          const registration = await Promise.race([
+          const activeRegistration = await Promise.race([
             navigator.serviceWorker.ready,
             timeoutPromise(3000, 'Service Worker пока не готов')
           ]);
-          await registration.showNotification(title, {
+          registration = activeRegistration;
+          await activeRegistration.showNotification(title, {
             body,
             icon: './icons/icon-192.png',
             badge: './icons/icon-192.png',
@@ -1088,5 +1107,6 @@
       setTimeout(() => $('recommendBtn').click(), 300);
     }
   </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2af493148e8e49b',t:'MTc4NjcwMzQ0NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
+
