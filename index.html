@@ -206,9 +206,9 @@
         <div>
           <label>Категория</label>
           <select id="clType">
-            <option value="outer">верхняя одежда</option>
-            <option value="top">верх</option>
-            <option value="bottom">низ</option>
+            <option value="outer">туловище</option>
+            <option value="top">головной убор</option>
+            <option value="bottom">ноги</option>
             <option value="shoes">обувь</option>
             <option value="accessory">аксессуар</option>
           </select>
@@ -288,18 +288,7 @@
       <button class="green" id="installBtn" hidden>Установить как приложение</button>
       <div class="status" id="pwaStatus">PWA-режим проверяется…</div>
       <div class="iconBox">
-        <img
-          id="appIconPreview"
-          src="https://mclovin5456-sketch.github.io/OutfitBot/icons/icon-192.png"
-          alt="Иконка OutfitBot"
-        />
-        <div>
-          <b>Иконка приложения</b>
-          <a class="imageLink" id="iconImageLink" href="https://mclovin5456-sketch.github.io/OutfitBot/icons/icon-192.png">https://mclovin5456-sketch.github.io/OutfitBot/icons/icon-192.png</a>
-        </div>
       </div>
-      <button class="ghost" id="openIconBtn" type="button">Открыть изображение</button>
-      <div class="status">Приложение теперь поддерживает установку на экран телефона и офлайн-запуск. Для настоящего автоматического пуша каждое утро все равно нужен серверный push или ограниченная поддержка Periodic Background Sync.</div>
     </section>
 
     <section class="card">
@@ -1188,10 +1177,9 @@
     // Демо-данные, чтобы приложение можно было протестировать сразу.
     if (!state.wardrobe.length) {
       state.wardrobe = [
-        {id:'1', name:'белую рубашку', type:'top', warmth:'mild', style:'business', rain:'no', place:'шкаф, левая секция'},
-        {id:'2', name:'темные джинсы', type:'bottom', warmth:'mild', style:'casual', rain:'no', place:'шкаф, нижняя полка'},
-        {id:'3', name:'серый пиджак', type:'outer', warmth:'mild', style:'business', rain:'no', place:'чехол у шкафа'},
-        {id:'4', name:'замшевые лоферы', type:'shoes', warmth:'mild', style:'business', rain:'no', place:'коридор'},
+        {id:'1', name:'белая рубашка', type:'top', warmth:'mild', style:'business', rain:'no', place:'шкаф, левая секция'},
+        {id:'2', name:'темные джинсы', type:'bottom', warmth:'mild', style:'casual', rain:'yes', place:'шкаф, нижняя полка'},
+        {id:'3', name:'серый пиджак', type:'outer', warmth:'mild', style:'business', rain:'yes', place:'чехол у шкафа'},
         {id:'5', name:'зонт', type:'accessory', warmth:'mild', style:'casual', rain:'yes', place:'у входной двери'}
       ];
       if (!state.events.length) {
