@@ -1,0 +1,1061 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <meta name="description" content="PWA-приложение, которое подбирает одежду по гардеробу, погоде и планам на день." />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="OutfitBot" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" sizes="192x192" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <title>Wardrobe Weather Bot</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --card: rgba(255,255,255,.09);
+      --card2: rgba(255,255,255,.13);
+      --text: #f8fafc;
+      --muted: #a7b0c2;
+      --accent: #8b5cf6;
+      --accent2: #22c55e;
+      --danger: #fb7185;
+      --line: rgba(255,255,255,.14);
+      --shadow: 0 22px 60px rgba(0,0,0,.35);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(139,92,246,.45), transparent 36%),
+        radial-gradient(circle at 95% 8%, rgba(34,197,94,.23), transparent 30%),
+        linear-gradient(145deg, #070b16, var(--bg));
+    }
+    .phone {
+      width: min(430px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 18px 16px 28px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 4px 18px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      width: 44px; height: 44px; border-radius: 16px;
+      display: grid; place-items: center;
+      background: linear-gradient(135deg, var(--accent), #06b6d4);
+      box-shadow: 0 12px 32px rgba(139,92,246,.35);
+      font-size: 23px;
+    }
+    h1 { margin: 0; font-size: 22px; letter-spacing: -.4px; }
+    .subtitle { margin-top: 2px; color: var(--muted); font-size: 12px; }
+    .pill {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.08);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 8px 10px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label { display: block; color: var(--muted); font-size: 12px; margin: 0 0 6px 2px; }
+    input, select, textarea, button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      outline: 0;
+      color: var(--text);
+      background: rgba(255,255,255,.08);
+      font: inherit;
+    }
+    input, select, textarea { padding: 12px 12px; }
+    select option { color: #111827; }
+    textarea { min-height: 74px; resize: vertical; }
+    button {
+      padding: 13px 14px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform .12s ease, background .12s ease;
+    }
+    button:active { transform: translateY(1px) scale(.99); }
+    .primary { background: linear-gradient(135deg, var(--accent), #06b6d4); border: 0; }
+    .green { background: linear-gradient(135deg, #16a34a, #22c55e); border: 0; }
+    .ghost { background: rgba(255,255,255,.08); }
+    .danger { background: rgba(251,113,133,.15); color: #fecdd3; }
+    .row { display: flex; align-items: center; gap: 10px; }
+    .row > * { flex: 1; }
+    .status {
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+    .message {
+      border-radius: 22px 22px 22px 6px;
+      background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.09));
+      border: 1px solid var(--line);
+      padding: 16px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      min-height: 104px;
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .chip {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.08);
+      border-radius: 999px;
+      padding: 7px 10px;
+      color: #e5e7eb;
+      font-size: 12px;
+    }
+    .item {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .item:last-child { border-bottom: 0; }
+    .item b { display: block; font-size: 14px; }
+    .item small { color: var(--muted); display: block; margin-top: 3px; line-height: 1.35; }
+    .miniBtn { width: auto; padding: 8px 10px; border-radius: 12px; font-size: 12px; flex: 0 0 auto; }
+    .sectionTitle { margin: 0 0 12px; font-size: 16px; }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .weatherLine { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 13px; }
+    @media (max-width: 360px) { .grid { grid-template-columns: 1fr; } h1 { font-size: 20px; } }
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <header>
+      <div class="brand">
+        <div class="logo">🧥</div>
+        <div>
+          <h1>OutfitBot</h1>
+          <div class="subtitle">гардероб + погода + утренний совет</div>
+        </div>
+      </div>
+      <div class="pill" id="timePill">08:00</div>
+    </header>
+
+    <section class="card">
+      <h2 class="sectionTitle">1. Геолокация и погода</h2>
+      <button class="primary" id="geoBtn">Включить геолокацию</button>
+      <div class="status" id="geoStatus">Нужен доступ к геолокации, чтобы получить прогноз по вашему региону.</div>
+      <div class="chips" id="weatherChips"></div>
+    </section>
+
+    <section class="card">
+      <h2 class="sectionTitle">2. Добавьте одежду</h2>
+      <div class="grid">
+        <div>
+          <label>Название</label>
+          <input id="clName" placeholder="серый пиджак" />
+        </div>
+        <div>
+          <label>Категория</label>
+          <select id="clType">
+            <option value="outer">верхняя одежда</option>
+            <option value="top">верх</option>
+            <option value="bottom">низ</option>
+            <option value="shoes">обувь</option>
+            <option value="accessory">аксессуар</option>
+          </select>
+        </div>
+        <div>
+          <label>Температура</label>
+          <select id="clWarmth">
+            <option value="hot">жара</option>
+            <option value="mild" selected>умеренно</option>
+            <option value="cold">холодно</option>
+          </select>
+        </div>
+        <div>
+          <label>Стиль</label>
+          <select id="clStyle">
+            <option value="casual">casual</option>
+            <option value="business">деловой</option>
+            <option value="sport">спорт</option>
+            <option value="evening">вечерний</option>
+          </select>
+        </div>
+        <div>
+          <label>Защита от дождя</label>
+          <select id="clRain">
+            <option value="no">нет</option>
+            <option value="yes">да</option>
+          </select>
+        </div>
+        <div>
+          <label>Где лежит</label>
+          <input id="clPlace" placeholder="в коридоре / шкаф" />
+        </div>
+      </div>
+      <div style="height:10px"></div>
+      <button class="green" id="addBtn">Добавить вещь</button>
+      <div class="status">Данные сохраняются локально в браузере через localStorage.</div>
+    </section>
+
+    <section class="card">
+      <h2 class="sectionTitle">3. Планы</h2>
+      <div class="grid">
+        <div>
+          <label>Дата</label>
+          <input id="eventDate" type="date" />
+        </div>
+        <div>
+          <label>Время</label>
+          <input id="eventTime" type="time" value="12:00" />
+        </div>
+      </div>
+      <div style="height:10px"></div>
+      <div>
+        <label>Событие</label>
+        <input id="eventText" placeholder="встреча / спортзал / ужин" />
+      </div>
+      <div style="height:10px"></div>
+      <div class="row">
+        <button class="ghost" id="saveEventBtn">Добавить план</button>
+        <button class="danger" id="clearEventsBtn">Убрать все</button>
+      </div>
+      <div class="status" id="eventStatus">Планы не заданы.</div>
+      <div id="eventList"></div>
+    </section>
+
+    <section class="card">
+      <h2 class="sectionTitle">4. Утреннее сообщение</h2>
+      <div class="message" id="botMessage">Добавьте одежду и включите геолокацию — я соберу образ на сегодня.</div>
+      <div style="height:10px"></div>
+      <div class="row">
+        <button class="primary" id="recommendBtn">Собрать образ</button>
+        <button class="ghost" id="notifyBtn">Уведомления</button>
+      </div>
+      <div class="status" id="notifyStatus">Статус уведомлений проверяется…</div>
+      <div style="height:10px"></div>
+      <button class="green" id="installBtn" hidden>Установить как приложение</button>
+      <div class="status" id="pwaStatus">PWA-режим проверяется…</div>
+      <div class="status">Приложение теперь поддерживает установку на экран телефона и офлайн-запуск. Для настоящего автоматического пуша каждое утро все равно нужен серверный push или ограниченная поддержка Periodic Background Sync.</div>
+    </section>
+
+    <section class="card">
+      <h2 class="sectionTitle">Мой гардероб</h2>
+      <div id="wardrobeList"></div>
+      <div style="height:10px"></div>
+      <button class="danger" id="clearBtn">Очистить гардероб</button>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const todayISO = () => new Date().toISOString().slice(0, 10);
+    const legacyEvent = JSON.parse(localStorage.getItem('dayEvent') || 'null');
+
+    const state = {
+      wardrobe: JSON.parse(localStorage.getItem('wardrobe') || '[]'),
+      events: JSON.parse(localStorage.getItem('events') || 'null') || (legacyEvent ? [{
+        id: 'legacy-' + Date.now(),
+        date: todayISO(),
+        time: legacyEvent.time || '12:00',
+        text: legacyEvent.text || ''
+      }] : []),
+      weather: JSON.parse(localStorage.getItem('weather') || 'null'),
+      coords: JSON.parse(localStorage.getItem('coords') || 'null'),
+      geoPermission: 'unknown',
+      notificationPermission: localStorage.getItem('notificationPermission') || 'default'
+    };
+
+    let deferredInstallPrompt = null;
+    let serviceWorkerReady = false;
+    let serviceWorkerError = '';
+
+    const weatherCodeText = {
+      0: 'ясно', 1: 'почти ясно', 2: 'переменная облачность', 3: 'пасмурно',
+      45: 'туман', 48: 'изморозь', 51: 'морось', 53: 'морось', 55: 'сильная морось',
+      61: 'дождь', 63: 'дождь', 65: 'сильный дождь', 71: 'снег', 73: 'снег', 75: 'сильный снег',
+      80: 'ливень', 81: 'ливень', 82: 'сильный ливень', 95: 'гроза', 96: 'гроза с градом', 99: 'гроза с градом'
+    };
+
+    function save() {
+      localStorage.setItem('wardrobe', JSON.stringify(state.wardrobe));
+      localStorage.setItem('events', JSON.stringify(state.events));
+      localStorage.removeItem('dayEvent');
+      localStorage.setItem('weather', JSON.stringify(state.weather));
+      localStorage.setItem('coords', JSON.stringify(state.coords));
+    }
+
+    function tick() {
+      const now = new Date();
+      $('timePill').textContent = now.toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
+    }
+    setInterval(tick, 1000); tick();
+
+    function isStandaloneMode() {
+      return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    }
+
+    function updatePwaStatus(extra = '') {
+      const secureOk = window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      const swOk = 'serviceWorker' in navigator;
+      const installed = isStandaloneMode();
+      const hostedOnGithubFileViewer = location.hostname === 'github.com' || location.hostname === 'raw.githubusercontent.com';
+
+      if (hostedOnGithubFileViewer) {
+        $('pwaStatus').textContent = 'PWA: откройте приложение через GitHub Pages, например username.github.io/repo/outfit_bot.html. В просмотре файла на github.com Service Worker и установка PWA не работают.';
+        $('installBtn').hidden = true;
+        return;
+      }
+
+      if (!secureOk) {
+        $('pwaStatus').textContent = 'PWA: для установки нужен HTTPS или localhost. При открытии через file:// Service Worker и установка не работают.';
+        $('installBtn').hidden = true;
+        return;
+      }
+
+      if (!swOk) {
+        $('pwaStatus').textContent = 'PWA: этот браузер не поддерживает Service Worker.';
+        $('installBtn').hidden = true;
+        return;
+      }
+
+      if (serviceWorkerError) {
+        $('pwaStatus').textContent = 'PWA: Service Worker не зарегистрирован — ' + serviceWorkerError;
+        $('installBtn').hidden = true;
+        return;
+      }
+
+      if (!serviceWorkerReady) {
+        $('pwaStatus').textContent = 'PWA: регистрирую Service Worker…' + (extra ? ' ' + extra : '');
+        return;
+      }
+
+      if (installed) {
+        $('pwaStatus').textContent = 'PWA: приложение уже запущено в установленном режиме. Офлайн-кэш активен.' + (extra ? ' ' + extra : '');
+        $('installBtn').hidden = true;
+      } else if (deferredInstallPrompt) {
+        $('pwaStatus').textContent = 'PWA: приложение готово к установке на экран телефона. Офлайн-кэш активен.' + (extra ? ' ' + extra : '');
+        $('installBtn').hidden = false;
+      } else {
+        $('pwaStatus').textContent = 'PWA: офлайн-кэш активен. Если кнопка установки не появилась, откройте меню браузера и выберите «Установить приложение» / «Добавить на экран Домой».' + (extra ? ' ' + extra : '');
+      }
+    }
+
+    function timeoutPromise(ms, message) {
+      return new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms));
+    }
+
+    async function registerServiceWorker() {
+      updatePwaStatus();
+
+      if (!('serviceWorker' in navigator)) {
+        updatePwaStatus();
+        return;
+      }
+
+      try {
+        const registration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+        await Promise.race([
+          navigator.serviceWorker.ready,
+          timeoutPromise(7000, 'таймаут ожидания Service Worker')
+        ]);
+        serviceWorkerReady = true;
+        serviceWorkerError = '';
+        updatePwaStatus('Готово.');
+
+        if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        registration.update().catch(() => {});
+        return registration;
+      } catch (e) {
+        serviceWorkerReady = false;
+        serviceWorkerError = e.message || String(e);
+        updatePwaStatus();
+      }
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        serviceWorkerReady = true;
+        serviceWorkerError = '';
+        updatePwaStatus('Обновление применено.');
+      });
+    }
+
+    window.addEventListener('beforeinstallprompt', event => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      updatePwaStatus();
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      updatePwaStatus('Установка завершена.');
+    });
+
+    $('installBtn').onclick = async () => {
+      if (!deferredInstallPrompt) {
+        updatePwaStatus('Используйте меню браузера для установки, если кнопка недоступна.');
+        return;
+      }
+
+      deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      updatePwaStatus(choice.outcome === 'accepted' ? 'Пользователь подтвердил установку.' : 'Установка отменена.');
+    };
+
+    function renderWeather() {
+      const box = $('weatherChips');
+      box.innerHTML = '';
+      if (!state.weather) return;
+      const w = state.weather;
+      [
+        `🌡️ сейчас ${Math.round(w.current.temperature_2m)}°C`,
+        `⬇️ ${Math.round(w.daily.temperature_2m_min[0])}° / ⬆️ ${Math.round(w.daily.temperature_2m_max[0])}°`,
+        `☔ дождь ${Math.round(w.daily.precipitation_probability_max[0] || 0)}%`,
+        `💨 ветер ${Math.round(w.current.wind_speed_10m)} км/ч`,
+        `☁️ ${weatherCodeText[w.current.weather_code] || 'прогноз'}`
+      ].forEach(t => {
+        const el = document.createElement('span');
+        el.className = 'chip';
+        el.textContent = t;
+        box.appendChild(el);
+      });
+    }
+
+    function renderWardrobe() {
+      const list = $('wardrobeList');
+      if (!state.wardrobe.length) {
+        list.innerHTML = '<div class="hint">Пока вещей нет. Добавьте, например: белая рубашка, темные джинсы, замшевые лоферы, зонт.</div>';
+        return;
+      }
+      list.innerHTML = '';
+      state.wardrobe.forEach((item, i) => {
+        const row = document.createElement('div');
+        row.className = 'item';
+        row.innerHTML = `
+          <div>
+            <b>${escapeHtml(item.name)}</b>
+            <small>${labelType(item.type)} · ${labelWarmth(item.warmth)} · ${labelStyle(item.style)} · дождь: ${item.rain === 'yes' ? 'да' : 'нет'} · ${escapeHtml(item.place || 'место не указано')}</small>
+          </div>
+          <button class="miniBtn ghost" data-del="${i}">Удалить</button>
+        `;
+        list.appendChild(row);
+      });
+      list.querySelectorAll('[data-del]').forEach(btn => btn.onclick = () => {
+        state.wardrobe.splice(Number(btn.dataset.del), 1);
+        save(); renderWardrobe();
+      });
+    }
+
+    function formatEventDate(dateStr) {
+      const [year, month, day] = String(dateStr).split('-').map(Number);
+      if (!year || !month || !day) return dateStr || 'без даты';
+      return new Date(year, month - 1, day).toLocaleDateString('ru-RU', {
+        day: '2-digit', month: 'long', year: 'numeric'
+      });
+    }
+
+    function getEventsForDate(dateStr) {
+      return state.events
+        .filter(event => event.date === dateStr)
+        .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    }
+
+    function getTodayEvents() {
+      return getEventsForDate(todayISO());
+    }
+
+    function renderEvent() {
+      const list = $('eventList');
+      const todayEvents = getTodayEvents();
+      const total = state.events.length;
+
+      $('eventStatus').textContent = total
+        ? `Всего планов: ${total}. На сегодня: ${todayEvents.length}.`
+        : 'Планы не заданы.';
+
+      if (!total) {
+        list.innerHTML = '<div class="hint">Добавьте план и выберите дату — бот учтет его только в нужный день.</div>';
+        return;
+      }
+
+      list.innerHTML = '';
+      [...state.events]
+        .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+        .forEach(event => {
+          const row = document.createElement('div');
+          row.className = 'item';
+          row.innerHTML = `
+            <div>
+              <b>${escapeHtml(event.text)}</b>
+              <small>${formatEventDate(event.date)} · ${escapeHtml(event.time || 'без времени')}</small>
+            </div>
+            <button class="miniBtn ghost" data-event-del="${event.id}">Убрать</button>
+          `;
+          list.appendChild(row);
+        });
+
+      list.querySelectorAll('[data-event-del]').forEach(btn => btn.onclick = () => {
+        state.events = state.events.filter(event => event.id !== btn.dataset.eventDel);
+        save();
+        renderEvent();
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    }
+    function labelType(v) { return ({outer:'верхняя одежда',top:'верх',bottom:'низ',shoes:'обувь',accessory:'аксессуар'})[v] || v; }
+    function labelWarmth(v) { return ({hot:'жара',mild:'умеренно',cold:'холодно'})[v] || v; }
+    function labelStyle(v) { return ({casual:'casual',business:'деловой',sport:'спорт',evening:'вечерний'})[v] || v; }
+
+    async function fetchWeather(lat, lon) {
+      const url = new URL('https://api.open-meteo.com/v1/forecast');
+      url.search = new URLSearchParams({
+        latitude: lat,
+        longitude: lon,
+        current: 'temperature_2m,weather_code,wind_speed_10m',
+        daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code',
+        timezone: 'auto',
+        forecast_days: '1'
+      });
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Не удалось получить погоду');
+      return res.json();
+    }
+
+    function getNotificationPermission() {
+      if (!('Notification' in window)) return 'unsupported';
+      return Notification.permission || 'default';
+    }
+
+    function isIosLike() {
+      return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    function rememberNotificationPermission(permission) {
+      // Не сохраняем denied навсегда: пользователь может поменять настройки сайта,
+      // а localStorage не должен продолжать показывать «заблокировано» сам по себе.
+      if (permission === 'granted') {
+        state.notificationPermission = 'granted';
+        localStorage.setItem('notificationPermission', 'granted');
+      } else if (permission === 'default') {
+        state.notificationPermission = 'default';
+        localStorage.removeItem('notificationPermission');
+      }
+    }
+
+    function updateNotificationStatus(forcedPermission = null) {
+      if (!window.isSecureContext) {
+        $('notifyStatus').textContent = 'Уведомления: нужен HTTPS. На GitHub используйте именно GitHub Pages, а не открытие файла из репозитория.';
+        $('notifyBtn').textContent = 'Нужен HTTPS';
+        return;
+      }
+
+      if (!('Notification' in window)) {
+        $('notifyStatus').textContent = isIosLike() && !isStandaloneMode()
+          ? 'Уведомления: на iPhone/iPad сначала установите сайт на экран Домой как PWA, затем откройте установленное приложение.'
+          : 'Уведомления: этот браузер не поддерживает Notification API.';
+        $('notifyBtn').textContent = 'Уведомления недоступны';
+        state.notificationPermission = 'unsupported';
+        return;
+      }
+
+      const browserPermission = getNotificationPermission();
+
+      // Некоторые браузеры обновляют Notification.permission с задержкой после системного окна.
+      // Поэтому сразу после requestPermission доверяем возвращенному значению forcedPermission.
+      const permission = forcedPermission || browserPermission;
+
+      if (permission === 'granted') {
+        rememberNotificationPermission('granted');
+        $('notifyStatus').textContent = 'Уведомления: разрешены. Повторный системный запрос больше не появится — это нормально.';
+        $('notifyBtn').textContent = 'Уведомления включены';
+      } else if (permission === 'denied') {
+        localStorage.removeItem('notificationPermission');
+        state.notificationPermission = 'denied';
+        $('notifyStatus').textContent = 'Уведомления: браузер заблокировал запрос для этого сайта. Код не может снять блокировку — разрешите уведомления в настройках сайта/браузера и нажмите кнопку еще раз.';
+        $('notifyBtn').textContent = 'Проверить уведомления';
+      } else if (state.notificationPermission === 'granted') {
+        $('notifyStatus').textContent = 'Уведомления: ранее были разрешены. Если GitHub/браузер сбросил разрешение, нажмите кнопку, чтобы запросить снова.';
+        $('notifyBtn').textContent = 'Проверить уведомления';
+      } else {
+        rememberNotificationPermission('default');
+        $('notifyStatus').textContent = 'Уведомления: еще не запрашивались.';
+        $('notifyBtn').textContent = 'Включить уведомления';
+      }
+    }
+
+    function requestNotificationPermissionCompat() {
+      return new Promise(resolve => {
+        if (!('Notification' in window)) return resolve('unsupported');
+
+        try {
+          const result = Notification.requestPermission(permission => {
+            if (permission) resolve(permission);
+          });
+
+          if (result && typeof result.then === 'function') {
+            result.then(resolve).catch(() => resolve(getNotificationPermission()));
+          } else {
+            setTimeout(() => resolve(getNotificationPermission()), 800);
+          }
+        } catch (e) {
+          resolve(getNotificationPermission());
+        }
+      });
+    }
+
+    async function updateGeoPermissionStatus() {
+      if (!navigator.geolocation) {
+        $('geoStatus').textContent = 'Ваш браузер не поддерживает геолокацию.';
+        $('geoBtn').textContent = 'Геолокация недоступна';
+        state.geoPermission = 'denied';
+        return;
+      }
+
+      if (!navigator.permissions || !navigator.permissions.query) {
+        state.geoPermission = state.coords && state.weather ? 'granted' : 'unknown';
+        if (state.coords && state.weather) {
+          $('geoBtn').textContent = 'Обновить геолокацию';
+          $('geoStatus').textContent = `Геолокация уже получена: ${state.coords.lat.toFixed(3)}, ${state.coords.lon.toFixed(3)}. Нажмите кнопку, чтобы обновить прогноз.`;
+        }
+        return;
+      }
+
+      try {
+        const perm = await navigator.permissions.query({ name: 'geolocation' });
+        state.geoPermission = perm.state;
+
+        if (perm.state === 'granted') {
+          $('geoBtn').textContent = 'Обновить геолокацию';
+          $('geoStatus').textContent = state.coords && state.weather
+            ? `Геолокация разрешена. Последние координаты: ${state.coords.lat.toFixed(3)}, ${state.coords.lon.toFixed(3)}. Нажмите кнопку, чтобы обновить прогноз.`
+            : 'Геолокация разрешена. Нажмите кнопку, чтобы получить координаты и прогноз.';
+        } else if (perm.state === 'prompt') {
+          $('geoBtn').textContent = 'Включить геолокацию';
+          $('geoStatus').textContent = 'Геолокация еще не разрешена. Нажмите кнопку и подтвердите доступ.';
+        } else {
+          state.coords = null;
+          state.weather = null;
+          save();
+          renderWeather();
+          $('geoBtn').textContent = 'Геолокация заблокирована';
+          $('geoStatus').textContent = 'Геолокация заблокирована. Разрешите доступ в настройках сайта/браузера.';
+        }
+
+        perm.onchange = () => updateGeoPermissionStatus();
+      } catch (e) {
+        state.geoPermission = state.coords && state.weather ? 'granted' : 'unknown';
+      }
+    }
+
+    function getGeoErrorText(err) {
+      if (!err) return 'неизвестная ошибка';
+      if (err.code === err.PERMISSION_DENIED) return 'доступ к геолокации запрещен';
+      if (err.code === err.POSITION_UNAVAILABLE) return 'устройство не смогло определить координаты';
+      if (err.code === err.TIMEOUT) return 'истекло время ожидания координат';
+      return err.message || 'неизвестная ошибка';
+    }
+
+    function getCurrentPositionPromise(options) {
+      return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, options);
+      });
+    }
+
+    async function getBrowserGeoPermissionState() {
+      if (!navigator.permissions || !navigator.permissions.query) return 'unknown';
+      try {
+        const perm = await navigator.permissions.query({ name: 'geolocation' });
+        return perm.state;
+      } catch (e) {
+        return 'unknown';
+      }
+    }
+
+    async function requestGeolocation() {
+      if (!navigator.geolocation) {
+        $('geoStatus').textContent = 'Ваш браузер не поддерживает геолокацию.';
+        return;
+      }
+
+      $('geoBtn').textContent = 'Получаю геолокацию…';
+      $('geoStatus').textContent = state.geoPermission === 'granted'
+        ? 'Разрешение уже выдано. Получаю текущие координаты…'
+        : 'Запрашиваю доступ к геолокации…';
+
+      let pos;
+      try {
+        // Первая попытка — точная геолокация. На некоторых телефонах она может зависнуть,
+        // поэтому ниже есть вторая, более мягкая попытка через сети/Wi‑Fi.
+        pos = await getCurrentPositionPromise({ enableHighAccuracy: true, timeout: 15000, maximumAge: 600000 });
+      } catch (firstErr) {
+        if (firstErr.code === firstErr.PERMISSION_DENIED) {
+          state.coords = null;
+          state.weather = null;
+          state.geoPermission = 'denied';
+          save();
+          renderWeather();
+          $('geoBtn').textContent = 'Геолокация заблокирована';
+          $('geoStatus').textContent = 'Геолокация не включена: доступ запрещен. Разрешите его в настройках сайта/браузера.';
+          return;
+        }
+
+        const permissionState = await getBrowserGeoPermissionState();
+        if (permissionState === 'granted') state.geoPermission = 'granted';
+
+        $('geoStatus').textContent = `Разрешение получено, но координаты пока не пришли: ${getGeoErrorText(firstErr)}. Пробую менее точный способ…`;
+
+        try {
+          pos = await getCurrentPositionPromise({ enableHighAccuracy: false, timeout: 25000, maximumAge: 3600000 });
+        } catch (secondErr) {
+          const finalPermissionState = await getBrowserGeoPermissionState();
+          if (finalPermissionState === 'granted' || state.geoPermission === 'granted') {
+            $('geoBtn').textContent = 'Повторить получение координат';
+            $('geoStatus').textContent = `Геолокация разрешена, но устройство не отдало координаты: ${getGeoErrorText(secondErr)}. Включите службы геолокации/GPS, Wi‑Fi или мобильную сеть и попробуйте еще раз.`;
+          } else {
+            $('geoBtn').textContent = 'Включить геолокацию';
+            $('geoStatus').textContent = `Не удалось получить геолокацию: ${getGeoErrorText(secondErr)}.`;
+          }
+          return;
+        }
+      }
+
+      try {
+        state.coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        state.geoPermission = 'granted';
+        $('geoBtn').textContent = 'Обновить геолокацию';
+        $('geoStatus').textContent = `Координаты получены: ${state.coords.lat.toFixed(3)}, ${state.coords.lon.toFixed(3)}. Загружаю прогноз…`;
+        state.weather = await fetchWeather(state.coords.lat, state.coords.lon);
+        save();
+        renderWeather();
+        $('geoStatus').textContent = `Геолокация включена. Прогноз обновлен: ${state.coords.lat.toFixed(3)}, ${state.coords.lon.toFixed(3)}.`;
+        updateGeoPermissionStatus();
+      } catch (e) {
+        $('geoBtn').textContent = 'Обновить геолокацию';
+        $('geoStatus').textContent = e.message + '. Координаты получены, но прогноз не загрузился. Проверьте интернет или CORS-доступ.';
+      }
+    }
+
+    $('geoBtn').onclick = requestGeolocation;
+
+    $('addBtn').onclick = () => {
+      const name = $('clName').value.trim();
+      if (!name) return alert('Введите название вещи');
+      state.wardrobe.push({
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        name,
+        type: $('clType').value,
+        warmth: $('clWarmth').value,
+        style: $('clStyle').value,
+        rain: $('clRain').value,
+        place: $('clPlace').value.trim()
+      });
+      $('clName').value = '';
+      $('clPlace').value = '';
+      save(); renderWardrobe();
+    };
+
+    $('saveEventBtn').onclick = () => {
+      const text = $('eventText').value.trim();
+      if (!text) return alert('Введите событие');
+
+      state.events.push({
+        id: crypto.randomUUID ? crypto.randomUUID() : 'event-' + Date.now(),
+        date: $('eventDate').value || todayISO(),
+        time: $('eventTime').value || '12:00',
+        text
+      });
+
+      $('eventText').value = '';
+      save();
+      renderEvent();
+    };
+
+    $('clearEventsBtn').onclick = () => {
+      if (!state.events.length) return;
+      if (!confirm('Убрать все планы?')) return;
+      state.events = [];
+      save();
+      renderEvent();
+    };
+
+    $('clearBtn').onclick = () => {
+      if (!confirm('Очистить весь гардероб?')) return;
+      state.wardrobe = [];
+      save(); renderWardrobe();
+    };
+
+    function pick(type, prefs = {}) {
+      let pool = state.wardrobe.filter(x => x.type === type);
+      if (prefs.style) {
+        const styled = pool.filter(x => x.style === prefs.style);
+        if (styled.length) pool = styled;
+      }
+      if (prefs.warmth) {
+        const warm = pool.filter(x => x.warmth === prefs.warmth);
+        if (warm.length) pool = warm;
+      }
+      if (prefs.rain === 'yes') {
+        const rain = pool.filter(x => x.rain === 'yes');
+        if (rain.length) pool = rain;
+      }
+      return pool[0] || null;
+    }
+
+    function buildRecommendation() {
+      if (!state.coords || !state.weather) {
+        return 'Сначала включите геолокацию и дождитесь загрузки прогноза — без погоды по вашему региону я не буду советовать образ.';
+      }
+
+      if (!state.wardrobe.length) return 'Сначала отправьте мне список одежды — без гардероба я не смогу собрать образ.';
+
+      const w = state.weather;
+      const temp = w.current.temperature_2m;
+      const min = w.daily.temperature_2m_min[0];
+      const rainProb = w.daily.precipitation_probability_max[0] || 0;
+      const weatherText = weatherCodeText[w.current.weather_code] || 'обычная погода';
+
+      const todayEvents = getTodayEvents();
+      const hasBusinessEvent = todayEvents.some(event => /встреч|офис|созвон|переговор|презентац|собеседован/i.test(event.text));
+      const warmth = temp >= 25 ? 'hot' : temp <= 10 ? 'cold' : 'mild';
+      const style = hasBusinessEvent ? 'business' : 'casual';
+      const rainy = rainProb >= 45 || /дожд|ливень|гроза|морось/i.test(weatherText);
+
+      const top = pick('top', { style, warmth }) || pick('top', { warmth }) || pick('top');
+      const bottom = pick('bottom', { style, warmth }) || pick('bottom', { warmth }) || pick('bottom');
+      const outer = (temp < 18 || rainy) ? (pick('outer', { style, warmth, rain: rainy ? 'yes' : undefined }) || pick('outer')) : null;
+      const shoes = pick('shoes', { style, rain: rainy ? 'yes' : undefined }) || pick('shoes', { style }) || pick('shoes');
+      const umbrella = state.wardrobe.find(x => /зонт/i.test(x.name)) || null;
+
+      const clothes = [outer, top, bottom, shoes].filter(Boolean);
+      let message = '';
+      if (clothes.length) {
+        message += 'Надень ' + clothes.map(x => x.name).join(', ') + '.';
+      } else {
+        message += 'Я пока не вижу базовых вещей в гардеробе. Добавьте верх, низ и обувь.';
+      }
+
+      message += `\nСегодня ${Math.round(temp)}°C, минимум ${Math.round(min)}°C, ${weatherText}.`;
+
+      if (todayEvents.length) {
+        message += '\nПланы на сегодня: ' + todayEvents.map(event => `${event.time} — ${event.text}`).join('; ') + '.';
+
+        const mainBusinessEvent = todayEvents.find(event => /встреч|офис|созвон|переговор|презентац|собеседован/i.test(event.text));
+        if (mainBusinessEvent) {
+          const formalShoes = pick('shoes', { style: 'business', rain: rainy ? 'yes' : undefined }) || shoes;
+          if (formalShoes) {
+            message += `\nВ ${mainBusinessEvent.time} будет ${mainBusinessEvent.text} — лучше ${formalShoes === shoes ? 'оставить' : 'переобуться в'} ${formalShoes.name}.`;
+            if (formalShoes.place) message += ` Я бы подготовил их: ${formalShoes.place}.`;
+          } else {
+            message += `\nВ ${mainBusinessEvent.time} будет ${mainBusinessEvent.text} — выбери более аккуратную обувь.`;
+          }
+        }
+      }
+
+      if (rainy) {
+        if (umbrella) message += `\nЗонт возьми: вероятность дождя ${Math.round(rainProb)}%. ${umbrella.place ? 'Он лежит: ' + umbrella.place + '.' : ''}`;
+        else message += `\nДождь вероятен (${Math.round(rainProb)}%) — добавьте зонт в гардероб или возьмите дождевик.`;
+      } else {
+        message += `\nЗонт не нужен — вероятность дождя около ${Math.round(rainProb)}%.`;
+      }
+
+      return message;
+    }
+
+    async function sendAppNotification(title, body) {
+      if (!('Notification' in window) || getNotificationPermission() !== 'granted') return;
+
+      // В PWA предпочтительно показывать уведомления через Service Worker.
+      if ('serviceWorker' in navigator) {
+        try {
+          const registration = await Promise.race([
+            navigator.serviceWorker.ready,
+            timeoutPromise(3000, 'Service Worker пока не готов')
+          ]);
+          await registration.showNotification(title, {
+            body,
+            icon: './icons/icon-192.png',
+            badge: './icons/icon-192.png',
+            tag: 'outfitbot-daily',
+            renotify: true
+          });
+          return;
+        } catch (e) {
+          // Если Service Worker еще не готов, используем обычный Notification API.
+        }
+      }
+
+      try {
+        new Notification(title, { body, icon: './icons/icon-192.png' });
+      } catch (e) {
+        $('notifyStatus').textContent = 'Уведомление не показано: ' + (e.message || e);
+      }
+    }
+
+    $('recommendBtn').onclick = () => {
+      const text = buildRecommendation();
+      $('botMessage').textContent = text;
+      sendAppNotification('OutfitBot', text);
+    };
+
+    $('notifyBtn').onclick = async () => {
+      if (!('Notification' in window)) {
+        updateNotificationStatus();
+        return alert('Браузер не поддерживает уведомления.');
+      }
+
+      const currentPermission = getNotificationPermission();
+
+      if (!window.isSecureContext) {
+        updateNotificationStatus();
+        alert('Для уведомлений нужен HTTPS. На GitHub откройте приложение через GitHub Pages, а не через просмотр файла в репозитории.');
+        return;
+      }
+
+      if (currentPermission === 'granted') {
+        updateNotificationStatus('granted');
+        sendAppNotification('OutfitBot включен', 'Уведомления уже разрешены. Системный запрос повторно не показывается.');
+        return;
+      }
+
+      if (currentPermission === 'denied') {
+        updateNotificationStatus('denied');
+        alert('Уведомления уже заблокированы браузером для этого сайта. Откройте настройки сайта → Уведомления → Разрешить, затем вернитесь и нажмите кнопку снова.');
+        return;
+      }
+
+      $('notifyStatus').textContent = 'Запрашиваю разрешение на уведомления…';
+      $('notifyBtn').textContent = 'Жду разрешение…';
+
+      const perm = await requestNotificationPermissionCompat();
+      updateNotificationStatus(perm);
+
+      if (perm === 'granted') {
+        sendAppNotification('OutfitBot включен', 'Каждое утро открывайте приложение — я соберу образ по погоде.');
+      } else if (perm === 'denied') {
+        alert('Уведомления заблокированы. Разрешите их вручную в настройках сайта/браузера.');
+      } else {
+        alert('Уведомления не разрешены. Если вы нажали «Разрешить», обновите страницу и проверьте настройки сайта.');
+      }
+    };
+
+    // Демо-данные, чтобы приложение можно было протестировать сразу.
+    if (!state.wardrobe.length) {
+      state.wardrobe = [
+        {id:'1', name:'белую рубашку', type:'top', warmth:'mild', style:'business', rain:'no', place:'шкаф, левая секция'},
+        {id:'2', name:'темные джинсы', type:'bottom', warmth:'mild', style:'casual', rain:'no', place:'шкаф, нижняя полка'},
+        {id:'3', name:'серый пиджак', type:'outer', warmth:'mild', style:'business', rain:'no', place:'чехол у шкафа'},
+        {id:'4', name:'замшевые лоферы', type:'shoes', warmth:'mild', style:'business', rain:'no', place:'коридор'},
+        {id:'5', name:'зонт', type:'accessory', warmth:'mild', style:'casual', rain:'yes', place:'у входной двери'}
+      ];
+      if (!state.events.length) {
+        state.events = [{ id: 'demo-event-1', date: todayISO(), time: '12:00', text: 'встреча' }];
+      }
+      save();
+    }
+
+    $('eventDate').value = todayISO();
+    renderWardrobe();
+    renderEvent();
+    renderWeather();
+    updateNotificationStatus();
+    updateGeoPermissionStatus();
+    registerServiceWorker();
+
+    if (new URLSearchParams(location.search).get('action') === 'recommend') {
+      setTimeout(() => $('recommendBtn').click(), 300);
+    }
+
+     const CACHE_NAME = 'outfitbot-pwa-v1';
+const APP_SHELL = [
+  './index.html',
+  './manifest.webmanifest',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(APP_SHELL))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.map(key => key === CACHE_NAME ? null : caches.delete(key))))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  const url = new URL(request.url);
+
+  if (request.method !== 'GET') return;
+
+  // Прогноз погоды всегда стараемся получить из сети, но при сбое отдаем кэш, если он есть.
+  if (url.hostname.includes('open-meteo.com')) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Для файлов приложения: сначала кэш, затем сеть.
+  event.respondWith(
+    caches.match(request).then(cached => cached || fetch(request).then(response => {
+      const copy = response.clone();
+      caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+      return response;
+    }).catch(() => caches.match('./outfit_bot.html')))
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow('./outfit_bot.html');
+    })
+  );
+});
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+{
+  "name": "OutfitBot — гардероб и погода",
+  "short_name": "OutfitBot",
+  "description": "PWA-приложение, которое подбирает одежду по вашему гардеробу, погоде и планам на день.",
+  "lang": "ru-RU",
+  "dir": "ltr",
+  "id": "./outfit_bot.html",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#0b1020",
+  "theme_color": "#111827",
+  "categories": ["lifestyle", "weather", "productivity"],
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Собрать образ",
+      "short_name": "Образ",
+      "description": "Открыть OutfitBot и получить рекомендацию на сегодня.",
+      "url": "./outfit_bot.html?action=recommend",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
+
