@@ -253,10 +253,13 @@
         <button class="primary" id="recommendBtn">Собрать образ</button>
         <button class="ghost" id="notifyBtn">Уведомления</button>
       </div>
+      <div style="height:10px"></div>
+      <button class="danger" id="disableNotifyBtn" hidden>Выключить уведомления</button>
       <div class="status" id="notifyStatus">Статус уведомлений проверяется…</div>
       <div style="height:10px"></div>
       <button class="green" id="installBtn" hidden>Установить как приложение</button>
       <div class="status" id="pwaStatus">PWA-режим проверяется…</div>
+      <div class="status">Приложение теперь поддерживает установку на экран телефона и офлайн-запуск. Для настоящего автоматического пуша каждое утро все равно нужен серверный push или ограниченная поддержка Periodic Background Sync.</div>
     </section>
 
     <section class="card">
@@ -328,7 +331,8 @@
       weather: safeJsonParse(storageGet('weather'), null),
       coords: safeJsonParse(storageGet('coords'), null),
       geoPermission: 'unknown',
-      notificationPermission: storageGet('notificationPermission', 'default') || 'default'
+      notificationPermission: storageGet('notificationPermission', 'default') || 'default',
+      notificationsEnabled: storageGet('notificationsEnabled', storageGet('notificationPermission') === 'granted' ? 'true' : 'false') === 'true'
     };
 
     let deferredInstallPrompt = null;
@@ -680,7 +684,14 @@
       }
     }
 
+    function setNotificationsEnabled(enabled) {
+      state.notificationsEnabled = Boolean(enabled);
+      storageSet('notificationsEnabled', state.notificationsEnabled ? 'true' : 'false');
+    }
+
     function updateNotificationStatus(forcedPermission = null) {
+      $('disableNotifyBtn').hidden = true;
+
       if (!window.isSecureContext) {
         $('notifyStatus').textContent = 'Уведомления: нужен HTTPS. На GitHub используйте именно GitHub Pages, а не открытие файла из репозитория.';
         $('notifyBtn').textContent = 'Нужен HTTPS';
@@ -704,16 +715,26 @@
 
       if (permission === 'granted') {
         rememberNotificationPermission('granted');
-        $('notifyStatus').textContent = 'Уведомления: разрешены. Повторный системный запрос больше не появится — это нормально.';
-        $('notifyBtn').textContent = 'Уведомления включены';
+        if (state.notificationsEnabled) {
+          $('notifyStatus').textContent = 'Уведомления: включены в приложении. Разрешение браузера выдано.';
+          $('notifyBtn').textContent = 'Проверить уведомления';
+          $('disableNotifyBtn').hidden = false;
+        } else {
+          $('notifyStatus').textContent = 'Уведомления: выключены в приложении. Разрешение браузера сохранено, но OutfitBot не будет отправлять уведомления.';
+          $('notifyBtn').textContent = 'Включить снова';
+          $('disableNotifyBtn').hidden = true;
+        }
       } else if (permission === 'denied') {
         storageRemove('notificationPermission');
         state.notificationPermission = 'denied';
         $('notifyStatus').textContent = 'Уведомления: браузер заблокировал запрос для этого сайта. Код не может снять блокировку — разрешите уведомления в настройках сайта/браузера и нажмите кнопку еще раз.';
         $('notifyBtn').textContent = 'Проверить уведомления';
       } else if (state.notificationPermission === 'granted') {
-        $('notifyStatus').textContent = 'Уведомления: ранее были разрешены. Если GitHub/браузер сбросил разрешение, нажмите кнопку, чтобы запросить снова.';
-        $('notifyBtn').textContent = 'Проверить уведомления';
+        $('notifyStatus').textContent = state.notificationsEnabled
+          ? 'Уведомления: ранее были разрешены. Если GitHub/браузер сбросил разрешение, нажмите кнопку, чтобы проверить.'
+          : 'Уведомления: выключены в приложении. Нажмите «Включить снова», если хотите получать их.';
+        $('notifyBtn').textContent = state.notificationsEnabled ? 'Проверить уведомления' : 'Включить снова';
+        $('disableNotifyBtn').hidden = !state.notificationsEnabled;
       } else {
         rememberNotificationPermission('default');
         $('notifyStatus').textContent = 'Уведомления: еще не запрашивались.';
@@ -1000,6 +1021,7 @@
     }
 
     async function sendAppNotification(title, body) {
+      if (!state.notificationsEnabled) return;
       if (!('Notification' in window) || getNotificationPermission() !== 'granted') return;
 
       // В PWA предпочтительно показывать уведомления через Service Worker.
@@ -1036,6 +1058,30 @@
       sendAppNotification('OutfitBot', text);
     };
 
+    async function disableAppNotifications() {
+      setNotificationsEnabled(false);
+
+      // Если позже будет подключен Web Push, отписываем текущую push-подписку.
+      // Разрешение браузера это не отменяет — его можно снять только вручную в настройках браузера.
+      if ('serviceWorker' in navigator) {
+        try {
+          const activeRegistration = await Promise.race([
+            navigator.serviceWorker.ready,
+            timeoutPromise(2500, 'Service Worker пока не готов')
+          ]);
+          if (activeRegistration.pushManager) {
+            const subscription = await activeRegistration.pushManager.getSubscription();
+            if (subscription) await subscription.unsubscribe();
+          }
+        } catch (e) {}
+      }
+
+      updateNotificationStatus(getNotificationPermission());
+      $('notifyStatus').textContent = 'Уведомления выключены в приложении. Браузерное разрешение осталось, но OutfitBot больше не будет показывать уведомления.';
+    }
+
+    $('disableNotifyBtn').onclick = disableAppNotifications;
+
     $('notifyBtn').onclick = async () => {
       if (!('Notification' in window)) {
         updateNotificationStatus();
@@ -1051,8 +1097,9 @@
       }
 
       if (currentPermission === 'granted') {
+        setNotificationsEnabled(true);
         updateNotificationStatus('granted');
-        sendAppNotification('OutfitBot включен', 'Уведомления уже разрешены. Системный запрос повторно не показывается.');
+        sendAppNotification('OutfitBot включен', 'Уведомления включены в приложении. Системный запрос повторно не показывается.');
         return;
       }
 
@@ -1069,6 +1116,8 @@
       updateNotificationStatus(perm);
 
       if (perm === 'granted') {
+        setNotificationsEnabled(true);
+        updateNotificationStatus('granted');
         sendAppNotification('OutfitBot включен', 'Каждое утро открывайте приложение — я соберу образ по погоде.');
       } else if (perm === 'denied') {
         alert('Уведомления заблокированы. Разрешите их вручную в настройках сайта/браузера.');
@@ -1106,6 +1155,5 @@
       setTimeout(() => $('recommendBtn').click(), 300);
     }
   </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2af493148e8e49b',t:'MTc4NjcwMzQ0NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
-
