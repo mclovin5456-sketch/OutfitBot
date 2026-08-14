@@ -1,17 +1,51 @@
-const CACHE_NAME = 'outfitbot-pwa-v1';
+const CACHE_NAME = 'outfitbot-pwa-v4';
+
+// Важно: на GitHub Pages cache.addAll() может сорвать установку всего SW,
+// если хотя бы один файл не найден или отдал HTML вместо JS/PNG.
+// Поэтому кэшируем каждый файл отдельно и не валим install из-за одной ошибки.
 const APP_SHELL = [
+  './',
   './index.html',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
 
+async function cacheAppShell() {
+  const cache = await caches.open(CACHE_NAME);
+  await Promise.allSettled(
+    APP_SHELL.map(async url => {
+      try {
+        const request = new Request(url, { cache: 'reload' });
+        const response = await fetch(request);
+        if (response && response.ok) {
+          await cache.put(request, response.clone());
+        }
+      } catch (e) {
+        // Не прерываем установку Service Worker из-за отдельного файла.
+      }
+    })
+  );
+}
+
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
+    cacheAppShell().then(() => self.skipWaiting())
   );
+});
+
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+
+  if (event.data && event.data.type === 'PING') {
+    event.source?.postMessage({
+      type: 'PONG',
+      cacheName: CACHE_NAME,
+      scope: self.registration.scope
+    });
+  }
 });
 
 self.addEventListener('activate', event => {
@@ -28,7 +62,7 @@ self.addEventListener('fetch', event => {
 
   if (request.method !== 'GET') return;
 
-  // Прогноз погоды всегда стараемся получить из сети, но при сбое отдаем кэш, если он есть.
+  // Прогноз погоды: сначала сеть, затем кэш.
   if (url.hostname.includes('open-meteo.com')) {
     event.respondWith(
       fetch(request)
@@ -42,13 +76,31 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Для файлов приложения: сначала кэш, затем сеть.
+  // Навигация внутри PWA: если сеть недоступна, открываем закэшированное приложение.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+          return response;
+        })
+        .catch(async () => {
+          return await caches.match('./outfit_bot.html') || await caches.match('./index.html');
+        })
+    );
+    return;
+  }
+
+  // Статика приложения: сначала кэш, затем сеть.
   event.respondWith(
     caches.match(request).then(cached => cached || fetch(request).then(response => {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+      if (response && response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+      }
       return response;
-    }).catch(() => caches.match('./outfit_bot.html')))
+    }))
   );
 });
 
