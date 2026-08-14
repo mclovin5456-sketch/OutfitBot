@@ -271,20 +271,52 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const todayISO = () => new Date().toISOString().slice(0, 10);
-    const legacyEvent = JSON.parse(localStorage.getItem('dayEvent') || 'null');
+
+    window.addEventListener('error', event => {
+      const box = document.getElementById('botMessage') || document.getElementById('pwaStatus');
+      if (box) box.textContent = 'Ошибка приложения: ' + (event.message || 'неизвестная ошибка') + '. Попробуйте очистить данные сайта или открыть ?reset-pwa=1.';
+    });
+
+    function safeJsonParse(value, fallback) {
+      try {
+        if (value === null || value === undefined || value === '') return fallback;
+        return JSON.parse(value);
+      } catch (e) {
+        return fallback;
+      }
+    }
+
+    function storageGet(key, fallback = null) {
+      try {
+        return localStorage.getItem(key) ?? fallback;
+      } catch (e) {
+        return fallback;
+      }
+    }
+
+    function storageSet(key, value) {
+      try { localStorage.setItem(key, value); } catch (e) {}
+    }
+
+    function storageRemove(key) {
+      try { localStorage.removeItem(key); } catch (e) {}
+    }
+
+    const legacyEvent = safeJsonParse(storageGet('dayEvent'), null);
+    const loadedEvents = safeJsonParse(storageGet('events'), null);
 
     const state = {
-      wardrobe: JSON.parse(localStorage.getItem('wardrobe') || '[]'),
-      events: JSON.parse(localStorage.getItem('events') || 'null') || (legacyEvent ? [{
+      wardrobe: safeJsonParse(storageGet('wardrobe'), []),
+      events: Array.isArray(loadedEvents) ? loadedEvents : (legacyEvent ? [{
         id: 'legacy-' + Date.now(),
         date: todayISO(),
         time: legacyEvent.time || '12:00',
         text: legacyEvent.text || ''
       }] : []),
-      weather: JSON.parse(localStorage.getItem('weather') || 'null'),
-      coords: JSON.parse(localStorage.getItem('coords') || 'null'),
+      weather: safeJsonParse(storageGet('weather'), null),
+      coords: safeJsonParse(storageGet('coords'), null),
       geoPermission: 'unknown',
-      notificationPermission: localStorage.getItem('notificationPermission') || 'default'
+      notificationPermission: storageGet('notificationPermission', 'default') || 'default'
     };
 
     let deferredInstallPrompt = null;
@@ -299,11 +331,11 @@
     };
 
     function save() {
-      localStorage.setItem('wardrobe', JSON.stringify(state.wardrobe));
-      localStorage.setItem('events', JSON.stringify(state.events));
-      localStorage.removeItem('dayEvent');
-      localStorage.setItem('weather', JSON.stringify(state.weather));
-      localStorage.setItem('coords', JSON.stringify(state.coords));
+      storageSet('wardrobe', JSON.stringify(state.wardrobe));
+      storageSet('events', JSON.stringify(state.events));
+      storageRemove('dayEvent');
+      storageSet('weather', JSON.stringify(state.weather));
+      storageSet('coords', JSON.stringify(state.coords));
     }
 
     function tick() {
@@ -432,6 +464,29 @@
         serviceWorkerReady = false;
         serviceWorkerError = e.message || String(e);
         updatePwaStatus();
+      }
+    }
+
+    async function resetPwaIfRequested() {
+      if (new URLSearchParams(location.search).get('reset-pwa') !== '1') return false;
+
+      try {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(reg => reg.unregister()));
+        }
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(key => caches.delete(key)));
+        }
+        serviceWorkerReady = false;
+        serviceWorkerError = '';
+        $('pwaStatus').textContent = 'PWA: старый Service Worker и кэш очищены. Сейчас страница перезагрузится…';
+        setTimeout(() => location.replace(location.pathname), 900);
+        return true;
+      } catch (e) {
+        $('pwaStatus').textContent = 'PWA: не удалось очистить старый кэш — ' + (e.message || e);
+        return false;
       }
     }
 
@@ -601,10 +656,10 @@
       // а localStorage не должен продолжать показывать «заблокировано» сам по себе.
       if (permission === 'granted') {
         state.notificationPermission = 'granted';
-        localStorage.setItem('notificationPermission', 'granted');
+        storageSet('notificationPermission', 'granted');
       } else if (permission === 'default') {
         state.notificationPermission = 'default';
-        localStorage.removeItem('notificationPermission');
+        storageRemove('notificationPermission');
       }
     }
 
@@ -635,7 +690,7 @@
         $('notifyStatus').textContent = 'Уведомления: разрешены. Повторный системный запрос больше не появится — это нормально.';
         $('notifyBtn').textContent = 'Уведомления включены';
       } else if (permission === 'denied') {
-        localStorage.removeItem('notificationPermission');
+        storageRemove('notificationPermission');
         state.notificationPermission = 'denied';
         $('notifyStatus').textContent = 'Уведомления: браузер заблокировал запрос для этого сайта. Код не может снять блокировку — разрешите уведомления в настройках сайта/браузера и нажмите кнопку еще раз.';
         $('notifyBtn').textContent = 'Проверить уведомления';
@@ -1025,7 +1080,9 @@
     renderWeather();
     updateNotificationStatus();
     updateGeoPermissionStatus();
-    registerServiceWorker();
+    resetPwaIfRequested().then(wasReset => {
+      if (!wasReset) registerServiceWorker();
+    });
 
     if (new URLSearchParams(location.search).get('action') === 'recommend') {
       setTimeout(() => $('recommendBtn').click(), 300);
