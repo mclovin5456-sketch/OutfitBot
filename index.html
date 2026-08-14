@@ -1055,7 +1055,7 @@ self.addEventListener('notificationclick', event => {
     })
   );
 });
-
+navigator.serviceWorker.register('./sw.js', { scope: './' });
   </script>
 </body>
 </html>
