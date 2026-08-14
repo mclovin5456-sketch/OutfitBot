@@ -975,7 +975,9 @@
 
       const todayEvents = getTodayEvents();
       const hasBusinessEvent = todayEvents.some(event => /встреч|офис|созвон|переговор|презентац|собеседован/i.test(event.text));
-      const warmth = temp >= 25 ? 'hot' : temp <= 10 ? 'cold' : 'mild';
+      // Температурные диапазоны:
+      // +10°C и меньше — холодно, +11…+19°C — умеренно, +20°C и больше — жара.
+      const warmth = temp <= 10 ? 'cold' : temp >= 20 ? 'hot' : 'mild';
       const style = hasBusinessEvent ? 'business' : 'casual';
       const rainy = rainProb >= 45 || /дожд|ливень|гроза|морось/i.test(weatherText);
 
