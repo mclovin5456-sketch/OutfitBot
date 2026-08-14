@@ -117,4 +117,9 @@ self.addEventListener('notificationclick', event => {
       if (clients.openWindow) return clients.openWindow('./outfit_bot.html');
     })
   );
+  self.addEventListener('periodicsync', event => {
+  if (event.tag === 'daily-outfit-sync') {
+    event.waitUntil(handleDailyOutfitSync());
+  }
+});
 });
