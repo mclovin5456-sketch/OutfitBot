@@ -10,8 +10,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="OutfitBot" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" sizes="192x192" href="./icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="icon" sizes="192x192" href="https://mclovin5456-sketch.github.io/OutfitBot/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="https://mclovin5456-sketch.github.io/OutfitBot/icons/icon-192.png" />
   <title>Wardrobe Weather Bot</title>
   <style>
     :root {
@@ -146,16 +146,33 @@
     .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
     .weatherLine { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 13px; }
     .imageLink {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 10px;
+      display: block;
+      margin-top: 6px;
       color: #c4b5fd;
-      text-decoration: none;
-      font-size: 13px;
-      word-break: break-word;
+      text-decoration: underline;
+      font-size: 12px;
+      word-break: break-all;
+      line-height: 1.35;
     }
-    .imageLink:hover { text-decoration: underline; }
+    .iconBox {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 12px 0 10px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255,255,255,.07);
+    }
+    .iconBox img {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      object-fit: cover;
+      flex: 0 0 auto;
+      background: rgba(255,255,255,.12);
+    }
+    .iconBox b { display: block; font-size: 14px; }
     @media (max-width: 360px) { .grid { grid-template-columns: 1fr; } h1 { font-size: 20px; } }
   </style>
 </head>
@@ -270,7 +287,18 @@
       <div style="height:10px"></div>
       <button class="green" id="installBtn" hidden>Установить как приложение</button>
       <div class="status" id="pwaStatus">PWA-режим проверяется…</div>
-      <a class="imageLink" href="https://mclovin5456-sketch.github.io/OutfitBot/icons/icon-192.png" target="_blank" rel="noopener noreferrer">🖼️ Открыть изображение иконки приложения</a>
+      <div class="iconBox">
+        <img
+          id="appIconPreview"
+          src="https://mclovin5456-sketch.github.io/OutfitBot/icons/icon-192.png"
+          alt="Иконка OutfitBot"
+        />
+        <div>
+          <b>Иконка приложения</b>
+          <a class="imageLink" id="iconImageLink" href="https://mclovin5456-sketch.github.io/OutfitBot/icons/icon-192.png">https://mclovin5456-sketch.github.io/OutfitBot/icons/icon-192.png</a>
+        </div>
+      </div>
+      <button class="ghost" id="openIconBtn" type="button">Открыть изображение</button>
       <div class="status">Приложение теперь поддерживает установку на экран телефона и офлайн-запуск. Для настоящего автоматического пуша каждое утро все равно нужен серверный push или ограниченная поддержка Periodic Background Sync.</div>
     </section>
 
@@ -354,6 +382,8 @@
     // Глобальная ссылка нужна как страховка: если в старом кэше/экспериментальном коде
     // осталась строка вида `registration...`, она не должна ронять весь интерфейс.
     var registration = null;
+
+    const APP_ICON_URL = 'https://mclovin5456-sketch.github.io/OutfitBot/icons/icon-192.png';
 
     const weatherCodeText = {
       0: 'ясно', 1: 'почти ясно', 2: 'переменная облачность', 3: 'пасмурно',
@@ -541,6 +571,21 @@
       deferredInstallPrompt = null;
       updatePwaStatus('Установка завершена.');
     });
+
+    $('appIconPreview').onerror = () => {
+      $('appIconPreview').src = './icons/icon-192.png';
+      $('pwaStatus').textContent = 'Внешняя иконка не загрузилась, показываю локальную ./icons/icon-192.png. На GitHub Pages внешняя ссылка должна открываться отдельно.';
+    };
+
+    $('openIconBtn').onclick = () => {
+      // target="_blank" иногда блокируется внутри установленной PWA, поэтому открываем явно.
+      window.location.href = APP_ICON_URL;
+    };
+
+    $('iconImageLink').onclick = event => {
+      event.preventDefault();
+      window.location.href = APP_ICON_URL;
+    };
 
     $('installBtn').onclick = async () => {
       if (!deferredInstallPrompt) {
