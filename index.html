@@ -145,6 +145,17 @@
     .sectionTitle { margin: 0 0 12px; font-size: 16px; }
     .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
     .weatherLine { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 13px; }
+    .imageLink {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      color: #c4b5fd;
+      text-decoration: none;
+      font-size: 13px;
+      word-break: break-word;
+    }
+    .imageLink:hover { text-decoration: underline; }
     @media (max-width: 360px) { .grid { grid-template-columns: 1fr; } h1 { font-size: 20px; } }
   </style>
 </head>
@@ -259,6 +270,7 @@
       <div style="height:10px"></div>
       <button class="green" id="installBtn" hidden>Установить как приложение</button>
       <div class="status" id="pwaStatus">PWA-режим проверяется…</div>
+      <a class="imageLink" href="https://mclovin5456-sketch.github.io/OutfitBot/icons/icon-192.png" target="_blank" rel="noopener noreferrer">🖼️ Открыть изображение иконки приложения</a>
       <div class="status">Приложение теперь поддерживает установку на экран телефона и офлайн-запуск. Для настоящего автоматического пуша каждое утро все равно нужен серверный push или ограниченная поддержка Periodic Background Sync.</div>
     </section>
 
