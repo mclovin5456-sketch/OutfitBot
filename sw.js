@@ -117,33 +117,5 @@ self.addEventListener('notificationclick', event => {
       if (clients.openWindow) return clients.openWindow('./outfit_bot.html');
     })
   );
-  self.addEventListener('periodicsync', event => {
-  if (event.tag === 'daily-outfit-sync') {
-    event.waitUntil(handleDailyOutfitSync());
-  }
 });
-  self.addEventListener('push', event => {
-  let data = {
-    title: 'OutfitBot',
-    body: 'Открой приложение — я собрал образ на сегодня.'
-  };
 
-  if (event.data) {
-    try {
-      data = event.data.json();
-    } catch {
-      data.body = event.data.text();
-    }
-  }
-
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'OutfitBot', {
-      body: data.body || 'Пора выбрать одежду на сегодня.',
-      icon: './icons/icon-192.png',
-      badge: './icons/icon-192.png',
-      tag: 'morning-outfit',
-      renotify: true
-    })
-  );
-});
-});
