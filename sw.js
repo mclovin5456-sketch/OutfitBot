@@ -6,6 +6,7 @@ const CACHE_NAME = 'outfitbot-pwa-v4';
 const APP_SHELL = [
   './',
   './index.html',
+  './outfit_bot.html',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png'
@@ -114,30 +115,4 @@ self.addEventListener('notificationclick', event => {
       if (clients.openWindow) return clients.openWindow('./outfit_bot.html');
     })
   );
-  self.addEventListener('periodicsync', event => {
-  if (event.tag === 'daily-outfit-sync') {
-    event.waitUntil(handleDailyOutfitSync());
-  }
-});
-
-async function handleDailyOutfitSync() {
-  const clientsList = await clients.matchAll({
-    type: 'window',
-    includeUncontrolled: true
-  });
-
-  // Здесь можно обновить кэш погоды или открыть уведомление.
-  await self.registration.showNotification('OutfitBot', {
-    body: 'Открой приложение — я подготовил совет по одежде на сегодня.',
-    icon: './icons/icon-192.png',
-    badge: './icons/icon-192.png',
-    tag: 'daily-outfit'
-  });
-
-  for (const client of clientsList) {
-    client.postMessage({
-      type: 'DAILY_SYNC_DONE'
-    });
-  }
-}
 });
