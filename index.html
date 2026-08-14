@@ -270,42 +270,8 @@
   </main>
 
   <script>
-    async function enablePeriodicSync() {
-  const status = document.getElementById('periodicSyncStatus');
-
-  if (!('serviceWorker' in navigator)) {
-    status.textContent = 'Periodic Sync: Service Worker не поддерживается.';
-    return;
-  }
-
-  const registration = await navigator.serviceWorker.ready;
-
-  if (!('periodicSync' in registration)) {
-    status.textContent = 'Periodic Sync: браузер не поддерживает Periodic Background Sync.';
-    return;
-  }
-
-  const permission = await navigator.permissions.query({
-    name: 'periodic-background-sync'
-  });
-
-  if (permission.state !== 'granted') {
-    status.textContent = 'Periodic Sync: нет разрешения на фоновую синхронизацию.';
-    return;
-  }
-
-  try {
-    await registration.periodicSync.register('daily-outfit-sync', {
-      minInterval: 24 * 60 * 60 * 1000
-    });
-
-    status.textContent = 'Periodic Sync включен: бот сможет обновляться примерно раз в сутки.';
-  } catch (error) {
-    status.textContent = 'Periodic Sync не удалось включить: ' + error.message;
-  }
-}
-
-document.getElementById('periodicSyncBtn').addEventListener('click', enablePeriodicSync);
+   <button id="periodicSyncBtn">Включить утренний фон</button>
+<div id="periodicSyncStatus"></div>
     const $ = (id) => document.getElementById(id);
     const todayISO = () => new Date().toISOString().slice(0, 10);
     const legacyEvent = JSON.parse(localStorage.getItem('dayEvent') || 'null');
