@@ -258,9 +258,7 @@
       <button class="danger" id="disableNotifyBtn" hidden>Выключить уведомления</button>
       <div class="status" id="notifyStatus">Статус уведомлений проверяется…</div>
       <div style="height:10px"></div>
-      <button class="green" id="installBtn" hidden>Установить как приложение</button>
       <div class="status" id="pwaStatus">PWA-режим проверяется…</div>
-      <div class="status">Приложение теперь поддерживает установку на экран телефона и офлайн-запуск. Для настоящего автоматического пуша каждое утро все равно нужен серверный push или ограниченная поддержка Periodic Background Sync.</div>
     </section>
 
     <section class="card">
@@ -689,8 +687,6 @@
     }
 
     function rememberNotificationPermission(permission) {
-      // Не сохраняем denied навсегда: пользователь может поменять настройки сайта,
-      // а localStorage не должен продолжать показывать «заблокировано» сам по себе.
       if (permission === 'granted') {
         state.notificationPermission = 'granted';
         storageSet('notificationPermission', 'granted');
@@ -716,8 +712,6 @@
 
       if (!('Notification' in window)) {
         $('notifyStatus').textContent = isIosLike() && !isStandaloneMode()
-          ? 'Уведомления: на iPhone/iPad сначала установите сайт на экран Домой как PWA, затем откройте установленное приложение.'
-          : 'Уведомления: этот браузер не поддерживает Notification API.';
         $('notifyBtn').textContent = 'Уведомления недоступны';
         state.notificationPermission = 'unsupported';
         return;
@@ -725,8 +719,6 @@
 
       const browserPermission = getNotificationPermission();
 
-      // Некоторые браузеры обновляют Notification.permission с задержкой после системного окна.
-      // Поэтому сразу после requestPermission доверяем возвращенному значению forcedPermission.
       const permission = forcedPermission || browserPermission;
 
       if (permission === 'granted') {
@@ -1144,15 +1136,13 @@
         alert('Уведомления не разрешены. Если вы нажали «Разрешить», обновите страницу и проверьте настройки сайта.');
       }
     };
-
-    // Демо-данные, чтобы приложение можно было протестировать сразу.
+    
     if (!state.wardrobe.length) {
       state.wardrobe = [
-        {id:'0', name:'теплую шапку', type:'head', warmth:'cold', style:'casual', rain:'no', place:'верхняя полка шкафа'},
-        {id:'1', name:'белую рубашку', type:'torso', warmth:'mild', style:'business', rain:'no', place:'шкаф, левая секция'},
+        {id:'0', name:'теплая шапка', type:'head', warmth:'cold', style:'casual', rain:'no', place:'верхняя полка шкафа'},
+        {id:'1', name:'белая рубашка', type:'torso', warmth:'mild', style:'business', rain:'no', place:'шкаф, левая секция'},
         {id:'2', name:'темные джинсы', type:'legs', warmth:'mild', style:'casual', rain:'no', place:'шкаф, нижняя полка'},
         {id:'3', name:'серый пиджак', type:'outer', warmth:'mild', style:'business', rain:'no', place:'чехол у шкафа'},
-        {id:'4', name:'замшевые лоферы', type:'shoes', warmth:'mild', style:'business', rain:'no', place:'коридор'},
         {id:'5', name:'зонт', type:'accessory', warmth:'mild', style:'casual', rain:'yes', place:'у входной двери'}
       ];
       if (!state.events.length) {
