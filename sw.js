@@ -1,8 +1,4 @@
-const CACHE_NAME = 'outfitbot-pwa-v9';
-
-// Важно: на GitHub Pages cache.addAll() может сорвать установку всего SW,
-// если хотя бы один файл не найден или отдал HTML вместо JS/PNG.
-// Поэтому кэшируем каждый файл отдельно и не валим install из-за одной ошибки.
+const CACHE_NAME = 'outfitbot-pwa-v10';
 const APP_SHELL = [
   './',
   './index.html',
@@ -118,4 +114,3 @@ self.addEventListener('notificationclick', event => {
     })
   );
 });
-
