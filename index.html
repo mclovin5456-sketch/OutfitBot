@@ -179,7 +179,7 @@
           <label>Категория</label>
           <select id="clType">
             <option value="head">головной убор</option>
-            <option value="outer">верхняя одежда</option>
+            <option value="outer">верхняя одежда — куртка, пальто</option>
             <option value="torso">туловище</option>
             <option value="legs">ноги</option>
             <option value="shoes">обувь</option>
@@ -258,7 +258,9 @@
       <button class="danger" id="disableNotifyBtn" hidden>Выключить уведомления</button>
       <div class="status" id="notifyStatus">Статус уведомлений проверяется…</div>
       <div style="height:10px"></div>
-      <div class="status" id="pwaStatus">PWA-режим проверяется…</div>
+      <button class="green" id="installBtn" type="button">Скачать APK приложения</button>
+      <div class="status" id="pwaStatus">Проверяю APK и офлайн-режим…</div>
+      <div class="status">Кнопка скачивает настоящий APK-файл <b>OutfitBot.apk</b>. Чтобы она работала на GitHub Pages, загрузите файл <b>OutfitBot.apk</b> в корень репозитория рядом с <b>outfit_bot.html</b>.</div>
     </section>
 
     <section class="card">
@@ -271,7 +273,13 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const todayISO = () => new Date().toISOString().slice(0, 10);
+    function todayISO() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
 
     function showRuntimeError(message) {
       const text = 'Ошибка приложения: ' + (message || 'неизвестная ошибка') + '. Попробуйте очистить PWA-кэш: откройте страницу с ?reset-pwa=1.';
@@ -316,6 +324,11 @@
       try { localStorage.removeItem(key); } catch (e) {}
     }
 
+    function createId(prefix = 'id') {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+      return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+
     const legacyEvent = safeJsonParse(storageGet('dayEvent'), null);
     const loadedEvents = safeJsonParse(storageGet('events'), null);
 
@@ -333,6 +346,8 @@
       notificationPermission: storageGet('notificationPermission', 'default') || 'default',
       notificationsEnabled: storageGet('notificationsEnabled', storageGet('notificationPermission') === 'granted' ? 'true' : 'false') === 'true'
     };
+
+    const APK_FILE_URL = './OutfitBot.apk';
 
     let deferredInstallPrompt = null;
     let serviceWorkerReady = false;
@@ -370,47 +385,37 @@
     function updatePwaStatus(extra = '') {
       const secureOk = window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
       const swOk = 'serviceWorker' in navigator;
-      const installed = isStandaloneMode();
       const hostedOnGithubFileViewer = location.hostname === 'github.com' || location.hostname === 'raw.githubusercontent.com';
 
+      // Кнопка теперь скачивает APK, а не устанавливает PWA-ярлык, поэтому она всегда видима.
+      $('installBtn').hidden = false;
+
       if (hostedOnGithubFileViewer) {
-        $('pwaStatus').textContent = 'PWA: откройте приложение через GitHub Pages, например username.github.io/repo/outfit_bot.html. В просмотре файла на github.com Service Worker и установка PWA не работают.';
-        $('installBtn').hidden = true;
+        $('pwaStatus').textContent = 'APK: для скачивания откройте GitHub Pages, а не просмотр файла на github.com. Офлайн-режим в просмотре GitHub не работает.';
         return;
       }
 
       if (!secureOk) {
-        $('pwaStatus').textContent = 'PWA: для установки нужен HTTPS или localhost. При открытии через file:// Service Worker и установка не работают.';
-        $('installBtn').hidden = true;
+        $('pwaStatus').textContent = 'APK: кнопка скачает OutfitBot.apk, если файл лежит рядом с outfit_bot.html. Офлайн-режим требует HTTPS или localhost.';
         return;
       }
 
       if (!swOk) {
-        $('pwaStatus').textContent = 'PWA: этот браузер не поддерживает Service Worker.';
-        $('installBtn').hidden = true;
+        $('pwaStatus').textContent = 'APK: кнопка скачает OutfitBot.apk. Service Worker в этом браузере не поддерживается.';
         return;
       }
 
       if (serviceWorkerError) {
-        $('pwaStatus').textContent = 'PWA: Service Worker не зарегистрирован — ' + serviceWorkerError;
-        $('installBtn').hidden = true;
+        $('pwaStatus').textContent = 'APK: кнопка скачивания доступна. Офлайн-режим не включился — ' + serviceWorkerError;
         return;
       }
 
       if (!serviceWorkerReady) {
-        $('pwaStatus').textContent = 'PWA: регистрирую Service Worker…' + (extra ? ' ' + extra : '');
+        $('pwaStatus').textContent = 'APK: кнопка скачивания готова. Проверяю офлайн-режим…' + (extra ? ' ' + extra : '');
         return;
       }
 
-      if (installed) {
-        $('pwaStatus').textContent = 'PWA: приложение уже запущено в установленном режиме. Офлайн-кэш активен.' + (extra ? ' ' + extra : '');
-        $('installBtn').hidden = true;
-      } else if (deferredInstallPrompt) {
-        $('pwaStatus').textContent = 'PWA: приложение готово к установке на экран телефона. Офлайн-кэш активен.' + (extra ? ' ' + extra : '');
-        $('installBtn').hidden = false;
-      } else {
-        $('pwaStatus').textContent = 'PWA: офлайн-кэш активен. Если кнопка установки не появилась, откройте меню браузера и выберите «Установить приложение» / «Добавить на экран Домой».' + (extra ? ' ' + extra : '');
-      }
+      $('pwaStatus').textContent = 'APK: нажмите «Скачать APK приложения». Офлайн-кэш сайта активен.' + (extra ? ' ' + extra : '');
     }
 
     function timeoutPromise(ms, message) {
@@ -529,17 +534,25 @@
       updatePwaStatus('Установка завершена.');
     });
 
-    $('installBtn').onclick = async () => {
-      if (!deferredInstallPrompt) {
-        updatePwaStatus('Используйте меню браузера для установки, если кнопка недоступна.');
-        return;
+    async function downloadApk() {
+      const apkUrl = new URL(APK_FILE_URL, location.href).href;
+      $('pwaStatus').textContent = 'Проверяю APK-файл…';
+
+      try {
+        const response = await fetch(apkUrl, { method: 'HEAD', cache: 'no-store' });
+        if (!response.ok) {
+          $('pwaStatus').textContent = `APK не найден: HTTP ${response.status}. Загрузите файл OutfitBot.apk в корень GitHub-репозитория.`;
+          return;
+        }
+      } catch (e) {
+        // Некоторые хостинги/браузеры блокируют HEAD. В таком случае просто открываем ссылку.
       }
 
-      deferredInstallPrompt.prompt();
-      const choice = await deferredInstallPrompt.userChoice;
-      deferredInstallPrompt = null;
-      updatePwaStatus(choice.outcome === 'accepted' ? 'Пользователь подтвердил установку.' : 'Установка отменена.');
-    };
+      $('pwaStatus').textContent = 'Открываю APK-файл. Если скачивание не началось, проверьте, что OutfitBot.apk лежит в корне сайта.';
+      window.location.href = apkUrl;
+    }
+
+    $('installBtn').onclick = downloadApk;
 
     function renderWeather() {
       const box = $('weatherChips');
@@ -563,7 +576,7 @@
     function renderWardrobe() {
       const list = $('wardrobeList');
       if (!state.wardrobe.length) {
-        list.innerHTML = '<div class="hint">Пока вещей нет. Добавьте, например: шапка, белая рубашка, темные джинсы, замшевые лоферы, зонт.</div>';
+        list.innerHTML = '<div class="hint">Пока вещей нет. Добавьте, например: шапка, куртка, белая рубашка, темные джинсы, замшевые лоферы, зонт.</div>';
         return;
       }
       list.innerHTML = '';
@@ -644,19 +657,29 @@
       return String(s || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
     }
     function normalizeClothingType(type) {
-      // Миграция старых категорий: top → torso, bottom → legs.
-      return ({ top: 'torso', bottom: 'legs' })[type] || type;
+      // Миграция старых/альтернативных категорий:
+      // top → torso, bottom → legs, jacket/coat/outerwear → outer.
+      return ({
+        top: 'torso',
+        bottom: 'legs',
+        jacket: 'outer',
+        coat: 'outer',
+        outerwear: 'outer'
+      })[type] || type;
     }
     function labelType(v) {
       return ({
         head: 'головной убор',
-        outer: 'верхняя одежда',
+        outer: 'верхняя одежда — куртка, пальто',
         torso: 'туловище',
         legs: 'ноги',
         shoes: 'обувь',
         accessory: 'аксессуар',
         top: 'туловище',
-        bottom: 'ноги'
+        bottom: 'ноги',
+        jacket: 'верхняя одежда — куртка, пальто',
+        coat: 'верхняя одежда — куртка, пальто',
+        outerwear: 'верхняя одежда — куртка, пальто'
       })[v] || v;
     }
     function labelWarmth(v) { return ({hot:'жара',mild:'умеренно',cold:'холодно'})[v] || v; }
@@ -687,6 +710,8 @@
     }
 
     function rememberNotificationPermission(permission) {
+      // Не сохраняем denied навсегда: пользователь может поменять настройки сайта,
+      // а localStorage не должен продолжать показывать «заблокировано» сам по себе.
       if (permission === 'granted') {
         state.notificationPermission = 'granted';
         storageSet('notificationPermission', 'granted');
@@ -712,6 +737,8 @@
 
       if (!('Notification' in window)) {
         $('notifyStatus').textContent = isIosLike() && !isStandaloneMode()
+          ? 'Уведомления: на iPhone/iPad сначала установите сайт на экран Домой как PWA, затем откройте установленное приложение.'
+          : 'Уведомления: этот браузер не поддерживает Notification API.';
         $('notifyBtn').textContent = 'Уведомления недоступны';
         state.notificationPermission = 'unsupported';
         return;
@@ -719,6 +746,8 @@
 
       const browserPermission = getNotificationPermission();
 
+      // Некоторые браузеры обновляют Notification.permission с задержкой после системного окна.
+      // Поэтому сразу после requestPermission доверяем возвращенному значению forcedPermission.
       const permission = forcedPermission || browserPermission;
 
       if (permission === 'granted') {
@@ -908,7 +937,7 @@
       const name = $('clName').value.trim();
       if (!name) return alert('Введите название вещи');
       state.wardrobe.push({
-        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        id: createId('clothes'),
         name,
         type: $('clType').value,
         warmth: $('clWarmth').value,
@@ -926,7 +955,7 @@
       if (!text) return alert('Введите событие');
 
       state.events.push({
-        id: crypto.randomUUID ? crypto.randomUUID() : 'event-' + Date.now(),
+        id: createId('event'),
         date: $('eventDate').value || todayISO(),
         time: $('eventTime').value || '12:00',
         text
@@ -958,8 +987,20 @@
         if (styled.length) pool = styled;
       }
       if (prefs.warmth) {
-        const warm = pool.filter(x => x.warmth === prefs.warmth);
-        if (warm.length) pool = warm;
+        const compatibleWarmth = {
+          cold: ['cold', 'mild'],
+          mild: ['mild', 'cold', 'hot'],
+          hot: ['hot', 'mild']
+        }[prefs.warmth] || [prefs.warmth];
+
+        const exact = pool.filter(x => x.warmth === prefs.warmth);
+        if (exact.length) {
+          pool = exact;
+        } else {
+          const compatible = pool.filter(x => compatibleWarmth.includes(x.warmth));
+          if (compatible.length) pool = compatible;
+          else if (prefs.warmth === 'cold' || prefs.warmth === 'hot') return null;
+        }
       }
       if (prefs.rain === 'yes') {
         const rain = pool.filter(x => x.rain === 'yes');
@@ -1136,13 +1177,16 @@
         alert('Уведомления не разрешены. Если вы нажали «Разрешить», обновите страницу и проверьте настройки сайта.');
       }
     };
-    
+
+    // Демо-данные, чтобы приложение можно было протестировать сразу.
     if (!state.wardrobe.length) {
       state.wardrobe = [
-        {id:'0', name:'теплая шапка', type:'head', warmth:'cold', style:'casual', rain:'no', place:'верхняя полка шкафа'},
-        {id:'1', name:'белая рубашка', type:'torso', warmth:'mild', style:'business', rain:'no', place:'шкаф, левая секция'},
+        {id:'0', name:'теплую шапку', type:'head', warmth:'cold', style:'casual', rain:'no', place:'верхняя полка шкафа'},
+        {id:'1', name:'белую рубашку', type:'torso', warmth:'mild', style:'business', rain:'no', place:'шкаф, левая секция'},
         {id:'2', name:'темные джинсы', type:'legs', warmth:'mild', style:'casual', rain:'no', place:'шкаф, нижняя полка'},
         {id:'3', name:'серый пиджак', type:'outer', warmth:'mild', style:'business', rain:'no', place:'чехол у шкафа'},
+        {id:'6', name:'теплую куртку', type:'outer', warmth:'cold', style:'casual', rain:'yes', place:'вешалка у входа'},
+        {id:'4', name:'замшевые лоферы', type:'shoes', warmth:'mild', style:'business', rain:'no', place:'коридор'},
         {id:'5', name:'зонт', type:'accessory', warmth:'mild', style:'casual', rain:'yes', place:'у входной двери'}
       ];
       if (!state.events.length) {
