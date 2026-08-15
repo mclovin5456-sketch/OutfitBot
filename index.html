@@ -10,8 +10,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="OutfitBot" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" sizes="192x192" href="https://mclovin5456-sketch.github.io/OutfitBot/icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="https://mclovin5456-sketch.github.io/OutfitBot/icons/icon-192.png" />
+  <link rel="icon" sizes="192x192" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
   <title>Wardrobe Weather Bot</title>
   <style>
     :root {
@@ -145,34 +145,6 @@
     .sectionTitle { margin: 0 0 12px; font-size: 16px; }
     .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
     .weatherLine { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 13px; }
-    .imageLink {
-      display: block;
-      margin-top: 6px;
-      color: #c4b5fd;
-      text-decoration: underline;
-      font-size: 12px;
-      word-break: break-all;
-      line-height: 1.35;
-    }
-    .iconBox {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 12px 0 10px;
-      padding: 12px;
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: rgba(255,255,255,.07);
-    }
-    .iconBox img {
-      width: 56px;
-      height: 56px;
-      border-radius: 16px;
-      object-fit: cover;
-      flex: 0 0 auto;
-      background: rgba(255,255,255,.12);
-    }
-    .iconBox b { display: block; font-size: 14px; }
     @media (max-width: 360px) { .grid { grid-template-columns: 1fr; } h1 { font-size: 20px; } }
   </style>
 </head>
@@ -206,9 +178,10 @@
         <div>
           <label>Категория</label>
           <select id="clType">
-            <option value="outer">туловище</option>
-            <option value="top">головной убор</option>
-            <option value="bottom">ноги</option>
+            <option value="head">головной убор</option>
+            <option value="outer">верхняя одежда</option>
+            <option value="torso">туловище</option>
+            <option value="legs">ноги</option>
             <option value="shoes">обувь</option>
             <option value="accessory">аксессуар</option>
           </select>
@@ -287,8 +260,7 @@
       <div style="height:10px"></div>
       <button class="green" id="installBtn" hidden>Установить как приложение</button>
       <div class="status" id="pwaStatus">PWA-режим проверяется…</div>
-      <div class="iconBox">
-      </div>
+      <div class="status">Приложение теперь поддерживает установку на экран телефона и офлайн-запуск. Для настоящего автоматического пуша каждое утро все равно нужен серверный push или ограниченная поддержка Periodic Background Sync.</div>
     </section>
 
     <section class="card">
@@ -371,8 +343,6 @@
     // Глобальная ссылка нужна как страховка: если в старом кэше/экспериментальном коде
     // осталась строка вида `registration...`, она не должна ронять весь интерфейс.
     var registration = null;
-
-    const APP_ICON_URL = 'https://mclovin5456-sketch.github.io/OutfitBot/icons/icon-192.png';
 
     const weatherCodeText = {
       0: 'ясно', 1: 'почти ясно', 2: 'переменная облачность', 3: 'пасмурно',
@@ -561,21 +531,6 @@
       updatePwaStatus('Установка завершена.');
     });
 
-    $('appIconPreview').onerror = () => {
-      $('appIconPreview').src = './icons/icon-192.png';
-      $('pwaStatus').textContent = 'Внешняя иконка не загрузилась, показываю локальную ./icons/icon-192.png. На GitHub Pages внешняя ссылка должна открываться отдельно.';
-    };
-
-    $('openIconBtn').onclick = () => {
-      // target="_blank" иногда блокируется внутри установленной PWA, поэтому открываем явно.
-      window.location.href = APP_ICON_URL;
-    };
-
-    $('iconImageLink').onclick = event => {
-      event.preventDefault();
-      window.location.href = APP_ICON_URL;
-    };
-
     $('installBtn').onclick = async () => {
       if (!deferredInstallPrompt) {
         updatePwaStatus('Используйте меню браузера для установки, если кнопка недоступна.');
@@ -610,7 +565,7 @@
     function renderWardrobe() {
       const list = $('wardrobeList');
       if (!state.wardrobe.length) {
-        list.innerHTML = '<div class="hint">Пока вещей нет. Добавьте, например: белая рубашка, темные джинсы, замшевые лоферы, зонт.</div>';
+        list.innerHTML = '<div class="hint">Пока вещей нет. Добавьте, например: шапка, белая рубашка, темные джинсы, замшевые лоферы, зонт.</div>';
         return;
       }
       list.innerHTML = '';
@@ -690,7 +645,22 @@
     function escapeHtml(s) {
       return String(s || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
     }
-    function labelType(v) { return ({outer:'верхняя одежда',top:'верх',bottom:'низ',shoes:'обувь',accessory:'аксессуар'})[v] || v; }
+    function normalizeClothingType(type) {
+      // Миграция старых категорий: top → torso, bottom → legs.
+      return ({ top: 'torso', bottom: 'legs' })[type] || type;
+    }
+    function labelType(v) {
+      return ({
+        head: 'головной убор',
+        outer: 'верхняя одежда',
+        torso: 'туловище',
+        legs: 'ноги',
+        shoes: 'обувь',
+        accessory: 'аксессуар',
+        top: 'туловище',
+        bottom: 'ноги'
+      })[v] || v;
+    }
     function labelWarmth(v) { return ({hot:'жара',mild:'умеренно',cold:'холодно'})[v] || v; }
     function labelStyle(v) { return ({casual:'casual',business:'деловой',sport:'спорт',evening:'вечерний'})[v] || v; }
 
@@ -990,7 +960,7 @@
     };
 
     function pick(type, prefs = {}) {
-      let pool = state.wardrobe.filter(x => x.type === type);
+      let pool = state.wardrobe.filter(x => normalizeClothingType(x.type) === type);
       if (prefs.style) {
         const styled = pool.filter(x => x.style === prefs.style);
         if (styled.length) pool = styled;
@@ -1027,18 +997,19 @@
       const style = hasBusinessEvent ? 'business' : 'casual';
       const rainy = rainProb >= 45 || /дожд|ливень|гроза|морось/i.test(weatherText);
 
-      const top = pick('top', { style, warmth }) || pick('top', { warmth }) || pick('top');
-      const bottom = pick('bottom', { style, warmth }) || pick('bottom', { warmth }) || pick('bottom');
+      const head = (temp <= 10 || rainy) ? (pick('head', { warmth, rain: rainy ? 'yes' : undefined }) || pick('head', { warmth }) || pick('head')) : null;
+      const torso = pick('torso', { style, warmth }) || pick('torso', { warmth }) || pick('torso');
+      const legs = pick('legs', { style, warmth }) || pick('legs', { warmth }) || pick('legs');
       const outer = (temp < 18 || rainy) ? (pick('outer', { style, warmth, rain: rainy ? 'yes' : undefined }) || pick('outer')) : null;
       const shoes = pick('shoes', { style, rain: rainy ? 'yes' : undefined }) || pick('shoes', { style }) || pick('shoes');
       const umbrella = state.wardrobe.find(x => /зонт/i.test(x.name)) || null;
 
-      const clothes = [outer, top, bottom, shoes].filter(Boolean);
+      const clothes = [head, outer, torso, legs, shoes].filter(Boolean);
       let message = '';
       if (clothes.length) {
         message += 'Надень ' + clothes.map(x => x.name).join(', ') + '.';
       } else {
-        message += 'Я пока не вижу базовых вещей в гардеробе. Добавьте верх, низ и обувь.';
+        message += 'Я пока не вижу базовых вещей в гардеробе. Добавьте вещи для туловища, ног и обувь.';
       }
 
       message += `\nСегодня ${Math.round(temp)}°C, минимум ${Math.round(min)}°C, ${weatherText}.`;
@@ -1177,9 +1148,11 @@
     // Демо-данные, чтобы приложение можно было протестировать сразу.
     if (!state.wardrobe.length) {
       state.wardrobe = [
-        {id:'1', name:'белая рубашка', type:'top', warmth:'mild', style:'business', rain:'no', place:'шкаф, левая секция'},
-        {id:'2', name:'темные джинсы', type:'bottom', warmth:'mild', style:'casual', rain:'yes', place:'шкаф, нижняя полка'},
-        {id:'3', name:'серый пиджак', type:'outer', warmth:'mild', style:'business', rain:'yes', place:'чехол у шкафа'},
+        {id:'0', name:'теплую шапку', type:'head', warmth:'cold', style:'casual', rain:'no', place:'верхняя полка шкафа'},
+        {id:'1', name:'белую рубашку', type:'torso', warmth:'mild', style:'business', rain:'no', place:'шкаф, левая секция'},
+        {id:'2', name:'темные джинсы', type:'legs', warmth:'mild', style:'casual', rain:'no', place:'шкаф, нижняя полка'},
+        {id:'3', name:'серый пиджак', type:'outer', warmth:'mild', style:'business', rain:'no', place:'чехол у шкафа'},
+        {id:'4', name:'замшевые лоферы', type:'shoes', warmth:'mild', style:'business', rain:'no', place:'коридор'},
         {id:'5', name:'зонт', type:'accessory', warmth:'mild', style:'casual', rain:'yes', place:'у входной двери'}
       ];
       if (!state.events.length) {
