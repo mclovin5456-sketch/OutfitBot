@@ -1059,16 +1059,20 @@
       const torso = pick('torso', { style, warmth }) || pick('torso', { warmth }) || pick('torso');
       const isCloudy = [2, 3, 45, 48].includes(w.current.weather_code) || /пасмурн|облачн|туман/i.test(weatherText);
       const legs = pickLegs(temp, style, isCloudy || rainy);
-      const outer = (temp < 18 || rainy) ? (pick('outer', { style, warmth, rain: rainy ? 'yes' : undefined }) || pick('outer')) : null;
+      // Верхняя одежда обязательна всегда (даже в жару — самый легкий подходящий вариант).
+      const outer = pick('outer', { style, warmth, rain: rainy ? 'yes' : undefined }) || pick('outer', { warmth }) || pick('outer');
       const shoes = pick('shoes', { style, rain: rainy ? 'yes' : undefined }) || pick('shoes', { style }) || pick('shoes');
       const umbrella = state.wardrobe.find(x => /зонт/i.test(x.name)) || null;
 
       const clothes = [head, outer, torso, legs, shoes].filter(Boolean);
+      const required = [['верхней одежды', outer], ['вещи для туловища', torso], ['штанов или шорт', legs], ['обуви', shoes]];
+      const missing = required.filter(([, item]) => !item).map(([label]) => label);
       let message = '';
       if (clothes.length) {
         message += 'Надень ' + clothes.map(x => x.name).join(', ') + '.';
-      } else {
-        message += 'Я пока не вижу базовых вещей в гардеробе. Добавьте вещи для туловища, ног и обувь.';
+      }
+      if (missing.length) {
+        message += (clothes.length ? '\n' : '') + 'Для полного образа не хватает в гардеробе: ' + missing.join(', ') + '. Добавьте эти вещи, и я смогу собрать полный образ.';
       }
 
       message += `\nСегодня ${Math.round(temp)}°C, минимум ${Math.round(min)}°C, ${weatherText}.`;
