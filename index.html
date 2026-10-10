@@ -1009,6 +1009,31 @@
       return pool[0] || null;
     }
 
+    // Шорты — только в жару (+20 и больше) и только в ясную/малооблачную погоду.
+    function isShorts(item) {
+      return /шорт/i.test(item.name || '');
+    }
+
+    // Подбор штанов/шорт с учетом температуры и погоды.
+    // +10 и ниже / +11…+19: только брюки (cold/mild), шорты и «жаркие» вещи не предлагаем.
+    // +20 и выше: шорты допустимы (hot/mild), но при пасмурной погоде или дожде — только брюки.
+    function pickLegs(temp, style, forceTrousers) {
+      const all = state.wardrobe.filter(x => normalizeClothingType(x.type) === 'legs');
+      const allowShorts = temp >= 20 && !forceTrousers;
+      const candidates = allowShorts ? all : all.filter(x => !isShorts(x));
+      const warmthOk = temp >= 20 ? ['hot', 'mild'] : ['cold', 'mild'];
+      const tiers = [
+        x => warmthOk.includes(x.warmth) && x.style === style,
+        x => warmthOk.includes(x.warmth),
+        x => temp >= 20 ? true : x.warmth !== 'hot'
+      ];
+      for (const test of tiers) {
+        const found = candidates.find(test);
+        if (found) return found;
+      }
+      return null;
+    }
+
     function buildRecommendation() {
       if (!state.coords || !state.weather) {
         return 'Сначала включите геолокацию и дождитесь загрузки прогноза — без погоды по вашему региону я не буду советовать образ.';
@@ -1032,7 +1057,8 @@
 
       const head = (temp <= 10 || rainy) ? (pick('head', { warmth, rain: rainy ? 'yes' : undefined }) || pick('head', { warmth }) || pick('head')) : null;
       const torso = pick('torso', { style, warmth }) || pick('torso', { warmth }) || pick('torso');
-      const legs = pick('legs', { style, warmth }) || pick('legs', { warmth }) || pick('legs');
+      const isCloudy = [2, 3, 45, 48].includes(w.current.weather_code) || /пасмурн|облачн|туман/i.test(weatherText);
+      const legs = pickLegs(temp, style, isCloudy || rainy);
       const outer = (temp < 18 || rainy) ? (pick('outer', { style, warmth, rain: rainy ? 'yes' : undefined }) || pick('outer')) : null;
       const shoes = pick('shoes', { style, rain: rainy ? 'yes' : undefined }) || pick('shoes', { style }) || pick('shoes');
       const umbrella = state.wardrobe.find(x => /зонт/i.test(x.name)) || null;
